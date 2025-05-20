@@ -1,82 +1,93 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-# Экспериментальные данные (пример)
-x = np.array([1, 2, 3, 4, 5, 6], dtype=float)
-y = np.array([2.3, 4.1, 5.8, 8.5, 11.2, 13.9], dtype=float)
-
-# Количество точек
+x = np.array([25, 40, 55, 70, 85, 100])
+y = np.array([2.4, 3.2, 3.8, 4.3, 4.7, 5.1])
 n = len(x)
 
-# --- 1. Линейная аппроксимация y = a*x + b ---
+# Линейная
 A_lin = np.vstack([x, np.ones(n)]).T
-coeff_lin, residuals, _, _ = np.linalg.lstsq(A_lin, y, rcond=None)
-a_lin, b_lin = coeff_lin
+a_lin, b_lin = np.linalg.lstsq(A_lin, y, rcond=None)[0]
+y_lin = a_lin * x + b_lin
 
-def f_lin(x): 
-    return a_lin * x + b_lin
+# Степенная
+log_x = np.log(x)
+log_y = np.log(y)
 
-# --- 2. Степенная аппроксимация y = beta * x^a ---
-# Линеаризация: ln(y) = ln(beta) + a*ln(x)
-ln_x = np.log(x)
-ln_y = np.log(y)
-A_pow = np.vstack([ln_x, np.ones(n)]).T
-coeff_pow, _, _, _ = np.linalg.lstsq(A_pow, ln_y, rcond=None)
-a_pow, ln_beta = coeff_pow
-beta_pow = np.exp(ln_beta)
+A_pow = np.vstack([log_x, np.ones(n)]).T
+a_pow, log_beta_pow = np.linalg.lstsq(A_pow, log_y, rcond=None)[0]
 
-def f_pow(x): 
-    return beta_pow * x**a_pow
+beta_pow = np.exp(log_beta_pow)
+y_pow = beta_pow * x ** a_pow
 
-# --- 3. Показательная аппроксимация y = beta * exp(a*x) ---
-# Линеаризация: ln(y) = ln(beta) + a*x
+# Показательная
+log_y_exp = np.log(y)
 A_exp = np.vstack([x, np.ones(n)]).T
-coeff_exp, _, _, _ = np.linalg.lstsq(A_exp, ln_y, rcond=None)
-a_exp, ln_beta_exp = coeff_exp
-beta_exp = np.exp(ln_beta_exp)
+a_exp, log_beta_exp = np.linalg.lstsq(A_exp, log_y_exp, rcond=None)[0]
 
-def f_exp(x): 
-    return beta_exp * np.exp(a_exp * x)
+beta_exp = np.exp(log_beta_exp)
+y_exp = beta_exp * np.exp(a_exp * x)
 
-# --- 4. Квадратичная аппроксимация y = a*x^2 + b*x + c ---
+# Квадратичная
 A_quad = np.vstack([x**2, x, np.ones(n)]).T
-coeff_quad, _, _, _ = np.linalg.lstsq(A_quad, y, rcond=None)
-a_quad, b_quad, c_quad = coeff_quad
+a_quad, b_quad, c_quad = np.linalg.lstsq(A_quad, y, rcond=None)[0]
+y_quad = a_quad * x**2 + b_quad * x + c_quad
 
-def f_quad(x): 
-    return a_quad * x**2 + b_quad * x + c_quad
+# Ошибки
+S_lin = np.sum((y - y_lin)**2)
+S_pow = np.sum((y - y_pow)**2)
+S_exp = np.sum((y - y_exp)**2)
+S_quad = np.sum((y - y_quad)**2)
 
-# --- Вычисление суммы квадратов отклонений ---
-def sum_squared_errors(f):
-    return np.sum((f(x) - y)**2)
+print("S (линейная):", S_lin)
+print("S (степенная):", S_pow)
+print("S (показательная):", S_exp)
+print("S (квадратичная):", S_quad)
 
-S_lin = sum_squared_errors(f_lin)
-S_pow = sum_squared_errors(f_pow)
-S_exp = sum_squared_errors(f_exp)
-S_quad = sum_squared_errors(f_quad)
+# Визуализация
+x_dense = np.linspace(min(x), max(x), 500)
+y_lin_dense = a_lin * x_dense + b_lin
+y_pow_dense = beta_pow * x_dense**a_pow
+y_exp_dense = beta_exp * np.exp(a_exp * x_dense)
+y_quad_dense = a_quad * x_dense**2 + b_quad * x_dense + c_quad
 
-# --- Вывод результатов ---
-print("Коэффициенты и сумма квадратов отклонений:")
-print(f"Линейная: y = {a_lin:.4f}x + {b_lin:.4f}, S = {S_lin:.4f}")
-print(f"Степенная: y = {beta_pow:.4f} * x^{a_pow:.4f}, S = {S_pow:.4f}")
-print(f"Показательная: y = {beta_exp:.4f} * exp({a_exp:.4f} * x), S = {S_exp:.4f}")
-print(f"Квадратичная: y = {a_quad:.4f}x^2 + {b_quad:.4f}x + {c_quad:.4f}, S = {S_quad:.4f}")
+# Отдельные графики
+fig, axs = plt.subplots(2, 2, figsize=(12, 10))
 
-# --- Построение графиков ---
+axs[0, 0].plot(x_dense, y_lin_dense, label='Линейная', color='blue')
+axs[0, 0].scatter(x, y, color='black')
+axs[0, 0].set_title('Линейная аппроксимация')
+axs[0, 0].legend()
 
-x_plot = np.linspace(min(x)*0.9, max(x)*1.1, 200)
+axs[0, 1].plot(x_dense, y_pow_dense, label='Степенная', color='green')
+axs[0, 1].scatter(x, y, color='black')
+axs[0, 1].set_title('Степенная аппроксимация')
+axs[0, 1].legend()
 
+axs[1, 0].plot(x_dense, y_exp_dense, label='Показательная', color='orange')
+axs[1, 0].scatter(x, y, color='black')
+axs[1, 0].set_title('Показательная аппроксимация')
+axs[1, 0].legend()
+
+axs[1, 1].plot(x_dense, y_quad_dense, label='Квадратичная', color='red')
+axs[1, 1].scatter(x, y, color='black')
+axs[1, 1].set_title('Квадратичная аппроксимация')
+axs[1, 1].legend()
+
+plt.tight_layout()
+plt.show()
+
+# Совместный график
 plt.figure(figsize=(10, 6))
-plt.scatter(x, y, color='black', label='Экспериментальные данные', zorder=5)
-plt.plot(x_plot, f_lin(x_plot), label='Линейная')
-plt.plot(x_plot, f_pow(x_plot), label='Степенная')
-plt.plot(x_plot, f_exp(x_plot), label='Показательная')
-plt.plot(x_plot, f_quad(x_plot), label='Квадратичная')
-plt.title('Аппроксимация экспериментальных данных')
+plt.scatter(x, y, color='black', label='Экспериментальные точки')
+plt.plot(x_dense, y_lin_dense, label='Линейная', color='blue')
+plt.plot(x_dense, y_pow_dense, label='Степенная', color='green')
+plt.plot(x_dense, y_exp_dense, label='Показательная', color='orange')
+plt.plot(x_dense, y_quad_dense, label='Квадратичная', color='red')
+plt.title('Сравнение аппроксимаций')
 plt.xlabel('x')
 plt.ylabel('y')
 plt.legend()
 plt.grid(True)
+plt.tight_layout()
 plt.show()
-
-# Отдельное окно с графиками всех функций вместе (уже сделано выше)
